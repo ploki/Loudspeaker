@@ -1,0 +1,11 @@
+Loudspeaker is an online loudspeaker graphing calculator
+for libapache2-mod-raii which permits to simulate drivers
+in different kind of enclosures like bass-reflex, push-pull,
+sealed enclosures and TQWP (like accoustic lines).
+
+Graphical representations are made with the libapache2-mod-raii
+Cairo binding which is transactionnal.
+
+But when doing enclosures yourself...
+... Do never forget the Ray's Rule of Precision:
+   Measure with a micrometer.  Mark with chalk.  Cut with an axe.
