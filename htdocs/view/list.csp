@@ -1,0 +1,104 @@
+<%#
+#include "all.H"
+#include <cmath>
+using namespace loudspeaker;
+%>
+<%!
+        String linkorder(const String& title, const String& name) {
+                return "<a href=\"/loudspeaker/index.C?action=list&order="+name+"\">"+title+"</a>";
+        }
+%>
+<html>
+  <head>
+    <title>loudspeaker graphing calculator</title>
+  </head>
+  <body>
+      <h3>Speaker list</h3>
+
+<table border="1">
+        <tr>
+                <th rowspan="2" ><%=linkorder("Name","name")%></th>
+                <th><%=linkorder("Fs","fs")%></th>
+                <th><%=linkorder("Vas","vas")%></th>
+                <th rowspan="2" colspan="2"><%=linkorder("Qts","qts")%></th>
+                <th><%=linkorder("Fs / Qts","fsqts")%></th>
+                <th><%=linkorder("Vas x Qts²","vasqts")%></th>
+                <th><%=linkorder("Fs x Vas x Qts","fvq")%></th>
+                <th><%=linkorder("z","z")%></th>
+                <th colspan="2">Sensibility</th>
+                <th><%=linkorder("diameter","diameter")%></th>
+        </tr>
+        <tr>
+                <th>Hz</th>
+                <th>L</th>
+                <th>Hz</th>
+                <th>L</th>
+                <th>Hz x L</th>
+                <th>Ω</th>
+                <th><%=linkorder("theoric","sens")%></th>
+                <th><%=linkorder("datasheet","db")%></th>
+                <th>cm</th>
+        </tr>
+<%
+
+        String order = request.getParameter("order");
+        if ( order.empty() ) order = "name";
+        Connection conn;
+        ResultSet rs=conn.query("SELECT name,fs,vas,qts,fs/qts AS fsqts ,vas*qts*qts AS vasqts,"
+                                " fs*vas*qts AS fvq,z,"
+                                " 4*3.14159265358979323844*3.14159265358979323844/(343*343*343)*fs*fs*fs*vas/10/qts AS sens,db,diameter"
+                                " FROM loudspeaker ORDER BY "+conn.sqlize(order));
+        while ( rs.next() ) {
+		enum {
+			SEALED,
+			BOTH,
+			VENTED
+		};
+		/*
+		http://www.usenclosure.com/Enclosure%20Formula's/enclosure_formula.htm
+		Efficiency Bandwidth Product (EBP)
+		*/
+		double ebp;
+		ebp = rs["fs"].tof()/rs["qts"].tof();
+		int enclosure;
+		if ( ebp <= 60. ) enclosure = SEALED;
+		else if ( ebp > 80. ) enclosure = VENTED;
+		else enclosure = BOTH;
+%>
+        <tr style="background: <%
+	switch (enclosure) {
+		case SEALED: response << "#ffd";break;
+		case BOTH:   response << "#fef";break;
+		case VENTED: response << "#eff";break;
+	}
+%>;">
+                <td>
+                <a href="http://www.google.com/search?q=<%=rs["name"].escapeAttribute()%>">G></a>
+                <a href="<%=request.getContextPath()%>/index.C?load_loudspeaker=Load&load=<%=rs["name"].escapeAttribute()%>"><%=rs["name"]%></a></td>
+                <td><%=rs["fs"]%></td>
+                <td><%=rs["vas"]%></td>
+                <td><%=rs["qts"]%></td>
+		<td><%{
+		switch (enclosure) {
+			case SEALED: response << "sealed"; break;
+			case BOTH:   response << "both"; break;
+			case VENTED: response << "vented"; break;
+		}
+}%></td>
+                <td><%=rs["fsqts"].tof()%></td>
+                <td><%=rs["vasqts"].tof()%></td>
+                <td><%=rs["fvq"].tof()%></td>
+                <td><%=rs["z"]%></td>
+                <td><%=double(10.L * log(rs["sens"].tof())/log(10.L)+92.1L)%></td>
+                <td><%=rs["db"]%></td>
+                <td><%=rs["diameter"]%></td>
+        </tr>
+<%
+        }
+%>
+</table>
+    <div>
+    </div>
+  </body>
+</html>
+

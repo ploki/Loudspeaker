@@ -1,0 +1,370 @@
+<%#
+#include "all.H"
+#include <cmath>
+using namespace loudspeaker;
+%>
+<%
+    ptr<Loudspeaker> ls = request.getSession()->getAttribute("loudspeaker");
+    if ( !ls ) throw ServletException("Loudspeaker not defined");
+    ptr<Box> box = request.getSession()->getAttribute("box");
+    if ( !box ) throw ServletException("Box is not defined");
+    ptr<List<Curve> > curves = request.getSession()->getAttribute("curves");
+    if ( !curves ) throw ServletException("Curve is not defined");
+%>
+<html>
+  <head>
+    <title>loudspeaker graphing calculator</title>
+  </head>
+  <body>
+    <form method="post">
+      <h3>loudspeaker graphing calculator</h3>
+    <div class="parameters">
+
+<table width="100%">
+ <tr><td colspan="2">
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Manufacturer/partnumber">Loudspeaker</abbr>
+            </div>
+            <div class="input">
+                <select name="load">
+<%
+    {
+        Connection conn;
+        ResultSet rs=conn.query("SELECT * FROM loudspeaker ORDER BY NAME");
+        while ( rs.next() ) {
+		// 40 * 20 * 70
+		//double vb = 56.;
+		double vb = 20*pow(rs["qts"].tof(),3.3L)*rs["vas"].tof();
+		double f_3 = rs["fs"].tof()*pow(rs["vas"].tof()/vb,.44);
+%>                  <option value="<%=rs["name"].escapeAttribute()%>" <%=((ls->name==rs["name"])?"selected=\"selected\"":"")%>>
+			<%=rs["name"].escapeHTML()%> - <%=rs["diameter"]%>cm - <%= rs["fs"].tof() / rs["qts"].tof() %>Hz - <%= rs["vas"].tof() * ( rs["qts"].tof() * rs["qts"].tof() ) %>L  - <%=rs["rms"]%>W/<%=rs["z"]%>Ω - <%=rs["dB"]%>dB
+
+			- ideal: vb=<%=vb%>L/f-3=<%=f_3%>Hz (qts=<%=rs["qts"].tof()%>)
+		    </option><%
+        }
+    }
+%>
+                </select>
+                <input type="submit" name="load_loudspeaker" value="Load"/>
+		<input type="submit" name="loudspeaker" value="Edit"/>
+		<input type="submit" name="loudspeaker" value="List"/>
+            </div>
+        </div>
+</td></tr><tr><td>
+        <div class="row">
+           <ul>
+             <li>Fs = <%=ls->fs%>Hz, Vas = <%=ls->vas%>L, Qts = <%=ls->qts%></li>
+             <li>sens =<%=ls->dB%>dB, z = <%=ls->z%>Ω, Prms = <%=ls->rms%>W</li>
+             <li>Fs / Qts = EBP = <%=(ls->fs / ls->qts)%>Hz - <%
+		if ( ls->fs / ls->qts < 50. ) response << "better in sealed enclosure";
+		else if ( ls->fs / ls->qts > 90. ) response << "better in vented enclosure";
+		else response << "compatible with any enclosure type";
+		%></li><%-- 
+             Qts = sqrt(Re*Zmax)/Zmax * Fs/(F2-F1)
+             Fs / Qts = (F2-F1) * sqrt(Re*Zmax) / Re
+             --%>
+             <li>Vas x Qts² = <%= ( ls->vas * ls->qts * ls->qts )%>L</li>
+             <li><%=ls->diameter%>cm - <%=ls->rms%>W/<%=ls->z%>Ω</li><%
+double rendement = 4.L * M_PI * M_PI / (343.L*343.L*343.L) * ls->fs * ls->fs * ls->fs * (ls->vas/1000.L) / ls->qts * 100.L;
+double sensibilite = 10.L * log(rendement/100.L)/log(10.L) + 112.1L;
+%>
+             <li>efficiency = <%=rendement%>%, sensibility = <%=sensibilite%>dB</li>
+           </ul>
+        </div>
+    <div class="box_parameters">
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Box type">Box type</abbr>
+            </div>
+            <div class="input">
+                <select name="configuration" onchange="this.form.submit();">
+                        <option value="1" <%=(box->configuration==1.?"selected=\"selected\"":"")%>>1 Driver</option>
+                        <option value="2" <%=(box->configuration==2.?"selected=\"selected\"":"")%>>2 Drivers //</option>
+                        <option value="0.5" <%=(box->configuration==0.5?"selected=\"selected\"":"")%>>2 Drivers push-pull</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Enclosure description">Box name</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="name" value="<%=box->name%>"/>
+                <input type="submit" name="save_box" value="Save"/>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Load">Load from db</abbr>
+            </div>
+            <div class="input">
+                <select name="boxtoload">
+                <option value=""></option>
+<%
+    {
+        Connection conn;
+        ResultSet rs=conn.query("SELECT name FROM box ORDER BY NAME");
+        while ( rs.next() ) {
+%>                  <option value="<%=rs["name"]%>"><%=rs["name"]%></option><%
+        }
+    }
+%>
+                </select>
+                <input type="submit" name="load_box" value="Load"/>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Box tunning freq">Fb (0 for sealed enclosure (or 1 for alternate formula))</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="fb" value="<%=box->fb%>" onchange="this.form.submit();"/>
+                <input type="submit" name="calc_fb_4" value="recalc. 4th"/>
+                <input type="submit" name="calc_fb_6" value="recalc. 6th"/>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Box Qual">Qb</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="Qb" value="<%=box->Qb%>" onchange="this.form.submit();"/>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Event type">Event type</abbr>
+            </div>
+            <div class="input">
+                <select name="laminaire" onchange="this.form.submit();">
+                        <option value="0" <%=(box->laminaire?"":"selected=\"selected\"")%>>Circular</option>
+                        <option value="1" <%=(box->laminaire?"selected=\"selected\"":"")%>>Laminar</option>
+                </select>
+            </div>
+        </div>
+
+        <% if ( box->laminaire) { %>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Port Length">L</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="L" value="<%=box->L%>" onchange="this.form.submit();"/>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Port Height">H</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="H" value="<%=box->H%>" onchange="this.form.submit();"/>
+            </div>
+        </div>
+        <input type="hidden" name="diameter" value="<%=box->diameter%>"/>
+        <input type="hidden" name="entraxe" value="<%=box->entraxe%>"/>
+        <% } else { %>
+        <div class="row">
+            <div class="label">
+                <abbr title="Port Diameter">Diameter</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="diameter" value="<%=box->diameter%>" onchange="this.form.submit();"/>
+            </div>
+        </div>
+        <div class="row">
+            <div class="label">
+                <abbr title="non zero if two ports">Distance between centres (for dual vent system)</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="entraxe" value="<%=box->entraxe%>" onchange="this.form.submit();"/>
+            </div>
+        </div>
+        <input type="hidden" name="L" value="<%=box->L%>"/>
+        <input type="hidden" name="H" value="<%=box->H%>"/>
+        <% } %>
+<%
+#define SCALE (7)
+        const double scale[SCALE] = { 2.L, 2.82842712474619009759L, 4.L, 5.65685424949238019517L, 8.L, 11.31370849898476039031L, 16.L };
+
+double rvas = box->configuration*ls->vas;
+double Qtc = sqrt((rvas*ls->qts*ls->qts+box->Vb*ls->qts*ls->qts)/box->Vb);
+double Fcb = Qtc*ls->fs/ls->qts;
+double F3 = Fcb * sqrt((1./(Qtc*Qtc)-2.+sqrt((1./(Qtc*Qtc)-2.)*(1./(Qtc*Qtc)-2.)+4.))/2.);
+double dBpeak = 0.;
+if ( Qtc >= sqrt(2.)/2. )
+  dBpeak = 20 * log(Qtc*Qtc/sqrt(Qtc*Qtc-0.25))/log(10);
+%>
+        <input type="submit" name="ideal" value="setup ideal vented box"/><br/>
+        <input type="submit" name="ideal_sealed" value="setup ideal sealed box"/> <hr/>
+Sealed info :<br/>
+qtc=<%=Qtc%>, Fcb=<%=Fcb%>Hz, F3=<%=F3%>Hz, dBpeak=<%=dBpeak%>dB
+  <hr/>
+        <strong>Pass band system</strong><br/>
+       Passband ripple : <input type="submit" name="ideal4th" value="0.00 dB"/>
+        <input type="submit" name="ideal4th" value="0.35 dB"/>
+        <input type="submit" name="ideal4th" value="1.25 dB"/>,
+  gain <input type="text" name="Pa" value=""/>
+<br/>
+        <div class="row">
+            <div class="label">
+                <abbr title="Rear chamber volume for 4th order band pass system or 0 for simple bass reflex system">Rear volume for 4th order passband (0 for simple bass reflex system)</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="Vr" value="<%=box->Vr%>" onchange="this.form.submit();"/>
+            </div>
+        </div>
+<hr/>
+        <div class="row">
+		<div class="label">
+			<abbr title="Filter">Filter</abbr>
+		</div>
+		<div class="input">
+			<select name="filter" onchange="this.form.submit();">
+				<option value="-8" <%=(box->filter==-8?"selected=\"selected\"":"")%>>High pass 4th order</option>
+				<option value="-4" <%=(box->filter==-4?"selected=\"selected\"":"")%>>High pass 2nd order</option>
+				<option value="-2" <%=(box->filter==-2?"selected=\"selected\"":"")%>>High pass 1st order</option>
+				<option value="0" <%=(box->filter==0?"selected=\"selected\"":"")%>>No filter</option>
+				<option value="2" <%=(box->filter==2?"selected=\"selected\"":"")%>>Low pass 1st order</option>
+				<option value="4" <%=(box->filter==4?"selected=\"selected\"":"")%>>Low pass 2nd order</option>
+				<option value="8" <%=(box->filter==8?"selected=\"selected\"":"")%>>Low pass 4th order</option>
+			</select>
+		</div>
+	</div>
+        <div class="row">
+		<div class="label">
+			<abbr title="Filter">Filter</abbr>
+		</div>
+			<input type="text" name="fc" value="<%=box->fc%>" onchange="this.form.submit();"/>
+	</div>
+</td><td>
+    <label for="normalize"><abbr title="Normalise all curves to zero">Normalize curves</title></label><input type="checkbox" name="normalize" <%=(request.getSession()->getAttribute("normalize")!=NULL?"checked":"")%> onchange="this.form.submit();"/> -
+    <label for="maxspl"><abbr title="Maximum sound pressure level at full power">Max SPL</abbr></label><input type="checkbox" name="maxspl" <%=(request.getSession()->getAttribute("maxspl")!=NULL?"checked":"")%> onchange="this.form.submit();"/> -
+    <label for="sum"><abbr title="Combinate curves">Sum</abbr></label><input type="checkbox" name="sum" <%=(request.getSession()->getAttribute("sum")!=NULL?"checked":"")%> onchange="this.form.submit();"/><br/>
+<% if ( getInitParameter("ImageType")=="SVG" &&  ( ! request.getHeader("User-Agent").matches("MSIE") ) ) { %>
+<!-- data="<%=request.getContextPath()%>/curve.C" -->
+<object width="100%" type="image/svg+xml" data="<%=request.getContextPath()%>/curve.C"/>
+<% } else { %>
+<img class="curve" src="<%=request.getContextPath()%>/curve.C"/>
+<% } %>
+</td></tr>
+</table>
+        <table border="1" width="100%">
+            <tr>
+                <td>alignment</td><td><input type="text" name="al" size=5 value="<%=(box->Vb/(box->configuration*ls->vas*ls->qts*ls->qts))%>"/><input type="submit" name="force_al" value="*"/></td>
+                <% for ( int i = 0 ; i < SCALE ; ++i ) {
+		     %><td><input type="submit" name="force_al" value="<%=scale[i]%>"></td><%
+                    }
+		%>
+            </tr>
+            <tr>
+                <td>Volume Vb</td><td><input type="text" name="Vb" size=5 value="<%=box->Vb%>" onchange="this.form.submit();"/>L</td>
+                <% for ( int i = 0 ; i < SCALE ; ++i ) response << "<td>" << scale[i]*box->configuration*ls->vas*ls->qts*ls->qts << "L</td>"; %>
+            </tr>
+            <tr>
+                <td>F@-3dB</td>
+                <%
+                        double ideal_fb = 0.383L * ls->fs / ls->qts;
+                        double factor = pow(2,(log(box->fb)-log(ideal_fb))/log(2));
+                        double f3 =factor*sqrt((box->configuration*ls->vas*ls->fs*ls->fs)/(box->Vb));
+                        response << "<td>"<< f3 <<"Hz</td>";
+                     for ( int i = 0 ; i < SCALE ; ++i ) {
+                        //double f3=((sqrt(2.L)/2.L)*sqrt((box->configuration*ls->vas*ls->fs*ls->fs)/(scale[i]*box->configuration*ls->vas*ls->qts*ls->qts)));
+                        f3=factor*sqrt((box->configuration*ls->vas*ls->fs*ls->fs)/(scale[i]*box->configuration*ls->vas*ls->qts*ls->qts));
+                        response << "<td>" << f3  << "Hz</td>";
+                     }%>
+            </tr>
+            <tr>
+                <td>Vent length</td>
+                <%
+                        //double ideal_fb = 0.383L * ls->fs / ls->qts;
+                        //double factor = pow(2,(log(box->fb)-log(ideal_fb))/log(2));
+                        double diameter=box->diameter;
+                        if ( box->laminaire ) {
+                                diameter=1.3L*pow( (( pow ( (box->L*box->H), 5.L ) )/( pow ( (box->L+box->H) , 2.L ))) ,(1./8.) );
+                        }
+                        double KC=1;
+                        if ( box->entraxe != 0 && ! box->laminaire) {
+                            KC = 1.L + ( 3.L * M_PI / 16.L * box->diameter / box->entraxe );
+                        }
+                        double surface = M_PI * pow(diameter/2.L,2.L);
+                        double l =(2987.039L*(surface/10000)/(box->fb*box->fb*box->Vb/1000)-0.846L*KC*sqrt(surface/10000))*100;
+                        response << "<td>" << l << "cm</td>";
+                     for ( int i = 0 ; i < SCALE ; ++i ) {
+                        l=(2987.039L*(surface/10000)/(box->fb*box->fb*scale[i]*box->configuration*ls->vas*ls->qts*ls->qts/1000)-0.846L*KC*sqrt(surface/10000))*100;
+                        response << "<td>" << l  << "cm</td>";
+                     }%>
+            </tr>
+        </table>
+    </div>
+    </form>
+    <p/>
+    <%
+        int maxid=0;
+        for ( List<Curve>::iterator it=curves->begin() ;
+              it != curves->end() ;
+              ++it ) {
+                if (it->id > maxid ) maxid=it->id;
+		if ( it->box != "¤" ) {
+            %><a href="<%=request.getContextPath()%>/index.C?action=removecurve&amp;id=<%=it->id%>">X</a> <span style="color: rgb(<%=int(it->r*255)%>,<%=int(it->g*255)%>,<%=int(it->b*255)%>);"><%=it->loudspeaker%> in <%=it->box%></span><br/><%
+		}
+		else {
+		ptr<Loudspeaker> other_ls = new Loudspeaker();
+		Connection conn;
+		other_ls->load(conn,it->loudspeaker);
+		it->calculateIdealBox(other_ls);
+            %><a href="<%=request.getContextPath()%>/index.C?action=removecurve&amp;id=<%=it->id%>">X</a> <span style="color: rgb(<%=int(it->r*255)%>,<%=int(it->g*255)%>,<%=int(it->b*255)%>);"><%=it->loudspeaker%> in ideal box (<%=it->idealbox.Vb%>L/<%=it->idealbox.fb%>Hz)</span><br/><%
+		}
+         }
+    ++maxid;
+%>
+    <form action="<%=request.getContextPath()%>/index.C?action=addcurve" method="post">
+        <input type="hidden" name="id" value="<%=maxid%>"/>
+        (r=<input type="text" name="r" size="2" value="<%=getInitParameter("R")%>"/>,
+        g=<input type="text" name="g" size="2" value="<%=getInitParameter("G")%>"/>,
+        b=<input type="text" name="b" size="2" value="<%=getInitParameter("B")%>"/>)
+                <select name="loudspeaker">
+                <option value=""></option>
+<%
+    {
+        Connection conn;
+        ResultSet rs=conn.query("SELECT name FROM loudspeaker ORDER BY NAME");
+        while ( rs.next() ) {
+%>                  <option value="<%=rs["name"]%>"><%=rs["name"]%></option><%
+        }
+    }
+%>
+                </select>
+        in
+                <select name="box">
+                <option value="¤">ideal box</option>
+<%
+    {
+        Connection conn;
+        ResultSet rs=conn.query("SELECT name FROM box ORDER BY NAME");
+        while ( rs.next() ) {
+%>                  <option value="<%=rs["name"]%>"><%=rs["name"]%></option><%
+        }
+    }
+%>
+                </select>
+        <input type="submit" name="ok" value="Add"/>
+    </form>
+    <hr/>
+Powered by <a href="http://blackmilk.fr/www/cms/dev/libapache2_mod_raii">libapache2-mod-raii</a>,
+<a href="http://cairographics.org/">Cairo</a>
+and <a href="http://www.pango.org/">Pango</a>.<br/>
+<em>Generated by <a href="http://blackmilk.fr/www/cms/dev/loudspeaker">loudspeaker</a>.</em><br/>
+Online woofer addicts : <%=getServletContext()->getSessionCount()%><br/>
+Questions are for loudspeaker a blackmilk o fr
+  </body>
+</html>

@@ -1,0 +1,3 @@
+-I/srv/src/loudspeaker
+-lloudspeaker_global
+-lraii_cairo

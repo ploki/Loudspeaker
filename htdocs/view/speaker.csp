@@ -1,0 +1,132 @@
+<%#
+#include "all.H"
+using namespace loudspeaker;
+%>
+<%
+    ptr<Loudspeaker> ls = request.getSession()->getAttribute("loudspeaker");
+    if ( !ls ) throw ServletException("Loudspeaker not defined");
+%>
+<html>
+  <head>
+    <title>loudspeaker</title>
+  </head>
+  <body>
+    <form action="<%=request.getContextPath()%>/index.C?action=speaker" method="post">
+      <h1>loudspeaker graphing calculator</h1>
+    <div class="parameters">
+
+      <h2>loudspeaker parameters</h2>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Manufacturer/partnumber">loudspeaker desc</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="name" value="<%=ls->name.escapeAttribute()%>"/>
+                <input type="submit" name="save_loudspeaker" value="Save"/>
+            </div>
+        </div>
+
+
+        <div class="row">
+            Fs / Qts = <%=(ls->fs / ls->qts)%>Hz <br/>
+            Vas x Qts² = <%= ( ls->vas * ls->qts * ls->qts )%>L
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Load">Load from db</abbr>
+            </div>
+            <div class="input">
+                <select name="load">
+<%
+    {
+        Connection conn;
+        ResultSet rs=conn.query("SELECT name FROM loudspeaker ORDER BY NAME");
+        while ( rs.next() ) {
+%>                  <option value="<%=rs["name"]%>"><%=rs["name"]%></option><%
+        }
+    }
+%>
+                </select>
+                <input type="submit" name="load_loudspeaker" value="Load"/>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Resonance frequency">Fs</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="fs" value="<%=ls->fs%>"/>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Qts">Qts</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="qts" value="<%=ls->qts%>"/>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Vas">Vas</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="vas" value="<%=ls->vas%>"/>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Sensibility">dB</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="dB" value="<%=ls->dB%>"/>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Ohms">z</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="z" value="<%=ls->z%>"/>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Watts RMS">Watts RMS</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="rms" value="<%=ls->rms%>"/>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="label">
+                <abbr title="Diameter">Diameter</abbr>
+            </div>
+            <div class="input">
+                <input type="text" name="diameter" value="<%=ls->diameter%>"/>
+            </div>
+        </div>
+
+            <div class="row">
+            <div class="label">
+                <abbr title="Use it without saving">Use it without saving</abbr>
+            </div>
+            <div class="input">
+                <input type="submit" name="useit" value="Use it!"/>
+            </div>
+        </div>
+
+
+    </div>
+    </form>
+  </body>
+</html>

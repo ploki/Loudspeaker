@@ -1,0 +1,26 @@
+CREATE TABLE loudspeaker (
+ name VARCHAR,
+ qts DECIMAL,
+ vas DECIMAL,
+ fs DECIMAL,
+ z DECIMAL,
+ dB DECIMAL,
+ rms DECIMAL,
+ diameter DECIMAL
+);
+
+CREATE TABLE box (
+ name VARCHAR,
+ configuration DECIMAL,
+ fb DECIMAL,
+ Vb DECIMAL,
+ Vr DECIMAL,
+ Qb DECIMAL,
+ diameter DECIMAL,
+ entraxe DECIMAL,
+ L DECIMAL,
+ H DECIMAL,
+ laminaire BOOLEAN,
+ filter VARCHAR,
+ fc DECIMAL
+);
