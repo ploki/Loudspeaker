@@ -52,7 +52,8 @@ using namespace loudspeaker;
 		enum {
 			SEALED,
 			BOTH,
-			VENTED
+			VENTED,
+			HIGH_Q
 		};
 		/*
 		http://www.usenclosure.com/Enclosure%20Formula's/enclosure_formula.htm
@@ -64,12 +65,15 @@ using namespace loudspeaker;
 		if ( ebp <= 60. ) enclosure = SEALED;
 		else if ( ebp > 80. ) enclosure = VENTED;
 		else enclosure = BOTH;
+		if ( SEALED == enclosure && rs["qts"].tof() > .7 )
+		   enclosure = HIGH_Q;
 %>
         <tr style="background: <%
 	switch (enclosure) {
 		case SEALED: response << "#ffd";break;
 		case BOTH:   response << "#fef";break;
 		case VENTED: response << "#eff";break;
+		case HIGH_Q: response << "#efe";break;
 	}
 %>;">
                 <td>
@@ -83,6 +87,7 @@ using namespace loudspeaker;
 			case SEALED: response << "sealed"; break;
 			case BOTH:   response << "both"; break;
 			case VENTED: response << "vented"; break;
+			case HIGH_Q: response << "ob"; break;
 		}
 }%></td>
                 <td><%=rs["fsqts"].tof()%></td>

@@ -50,7 +50,10 @@ class Loudspeaker : public Object {
     double rms;
     double diameter;
 
-    Loudspeaker(String _name="Lambda speaker",double _qts=.5,double _vas=10,double _fs=30,double _z=8,double _dB=90,double _rms=100,double _diameter=21) :
+    Loudspeaker(String _name="SCANSPEAK 26W/8534G00",
+		double _qts=.4,double _vas=150,double _fs=23,
+		double _z=8,double _dB=89,double _rms=80,
+		double _diameter=27.2) :
         name(_name), qts(_qts), vas(_vas), fs(_fs), z(_z), dB(_dB), rms(_rms), diameter(_diameter) {}
 
     Loudspeaker(Connection& conn, String _name) :
@@ -118,7 +121,7 @@ class Box : public Object {
     int filter;
     double fc;
 
-    Box(String _name="Lambda box", double _configuration=1, double _fb=40,double _Vb=25, double _Vr=0.L, double _Qb=7,double _diameter=10, double _entraxe=0, double _L=20,double _H=2,bool _laminaire=false, int _filter=0, double _fc=0) :
+    Box(String _name="Lambda box", double _configuration=1, double _fb=1,double _Vb=40, double _Vr=0.L, double _Qb=7,double _diameter=10, double _entraxe=0, double _L=20,double _H=2,bool _laminaire=false, int _filter=0, double _fc=0) :
         name(_name), configuration(_configuration), fb(_fb), Vb(_Vb), Vr(_Vr), Qb(_Qb), diameter(_diameter), entraxe(_entraxe), L(_L), H(_H), laminaire(_laminaire), filter(_filter), fc(_fc) {}
 
     Box(Connection& conn, String _name) :
